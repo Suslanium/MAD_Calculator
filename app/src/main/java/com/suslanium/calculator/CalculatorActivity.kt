@@ -3,23 +3,26 @@ package com.suslanium.calculator
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.suslanium.calculator.ui.CalculatorButton
-import com.suslanium.calculator.ui.theme.CalculatorTheme
+import com.suslanium.calculator.presentation.CalculatorUiState
+import com.suslanium.calculator.presentation.CalculatorViewModel
+import com.suslanium.calculator.presentation.CalculatorButton
+import com.suslanium.calculator.ui.theme.*
 
 class CalculatorActivity : ComponentActivity() {
 
@@ -30,242 +33,245 @@ class CalculatorActivity : ComponentActivity() {
                 CalculatorButton.BRACKETS,
                 CalculatorButton.PERCENT,
                 CalculatorButton.DIVIDE
-            ),
-            listOf(
+            ), listOf(
                 CalculatorButton.SEVEN,
                 CalculatorButton.EIGHT,
                 CalculatorButton.NINE,
                 CalculatorButton.MULTIPLY
-            ),
-            listOf(
+            ), listOf(
                 CalculatorButton.FOUR,
                 CalculatorButton.FIVE,
                 CalculatorButton.SIX,
                 CalculatorButton.SUBTRACT
-            ),
-            listOf(
+            ), listOf(
                 CalculatorButton.ONE,
                 CalculatorButton.TWO,
                 CalculatorButton.THREE,
                 CalculatorButton.ADD
-            ),
-            listOf(CalculatorButton.ZERO, CalculatorButton.COMMA, CalculatorButton.CALCULATE)
+            ), listOf(CalculatorButton.ZERO, CalculatorButton.COMMA, CalculatorButton.CALCULATE)
         )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val viewModel: CalculatorViewModel by viewModels()
         setContent {
             CalculatorTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background
                 ) {
-                    CalculatorScreen()
+                    CalculatorScreenTest(viewModel = viewModel)
                 }
             }
         }
     }
 
+    @OptIn(ExperimentalAnimationApi::class)
     @Composable
-    fun CalculatorScreen() {
-        BoxWithConstraints(
-            modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter
-        ) {
-            val scale = if (maxWidth < maxHeight) maxWidth.value / 412 else maxHeight.value / 412
-            if (700 * scale < maxHeight.value) {
-                Text(
-                    "Calculator",
-                    Modifier
-                        .align(Alignment.TopStart)
-                        .padding((16 * scale).dp),
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontSize = (MaterialTheme.typography.headlineMedium.fontSize.value * scale).sp,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            }
-            Column(
-                verticalArrangement = Arrangement.spacedBy((16 * scale).dp),
-                modifier = Modifier.padding(bottom = (16 * scale).dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                var value by remember { mutableStateOf("2345,003") }
-                InputField(scale = scale, value = value)
-                Backspace(scale = scale, enabled = false)
-                Divider(
+    fun CalculatorScreenTest(viewModel: CalculatorViewModel) {
+        val configuration = LocalConfiguration.current
+        val screenHeight = configuration.screenHeightDp
+        val state by viewModel.state.observeAsState(initial = CalculatorUiState.Input)
+        val input by viewModel.input.observeAsState(initial = "")
+        Column(modifier = Modifier.fillMaxSize()) {
+            if (screenHeight > 700) {
+                Spacer(modifier = Modifier.weight(TitleRowSpacerWeight))
+                TitleText(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = (16 * scale).dp),
+                        .weight(TitleRowWeight)
+                )
+            }
+            Spacer(modifier = Modifier.weight(ResultRowSpacerWeight))
+            AnimatedContent(targetState = state, transitionSpec = {
+                (slideInVertically { width -> width } + fadeIn() with slideOutVertically { width -> -width } + fadeOut()).using(
+                    SizeTransform(clip = true)
+                )
+            }) {
+                InputField(
+                    value = when (it) {
+                        CalculatorUiState.Error -> "Error"
+                        CalculatorUiState.Input -> input
+                        is CalculatorUiState.Result -> it.result
+                    }, color = when (it) {
+                        CalculatorUiState.Error -> MaterialTheme.colorScheme.error
+                        CalculatorUiState.Input -> MaterialTheme.colorScheme.onBackground
+                        is CalculatorUiState.Result -> MaterialTheme.colorScheme.primary
+                    }, modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(ResultRowWeight)
+                )
+            }
+            Spacer(modifier = Modifier.weight(ActionsVerticalSpacerWeight))
+            Actions(
+                viewModel = viewModel,
+                enabledBackSpace = input.isNotEmpty() && state is CalculatorUiState.Input,
+                modifier = Modifier
+                    .weight(ActionsWeight)
+                    .verticalScroll(
+                        rememberScrollState()
+                    )
+            )
+        }
+    }
+
+    @Composable
+    fun TitleText(modifier: Modifier) {
+        Row(modifier = modifier) {
+            Spacer(modifier = Modifier.weight(PadSpacerWeight))
+            Text(
+                text = "Calculator",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.weight(TitleTextWeight)
+            )
+        }
+    }
+
+    @Composable
+    fun InputField(value: String, color: Color, modifier: Modifier) {
+        Row(modifier = modifier) {
+            Spacer(modifier = Modifier.weight(PadSpacerWeight))
+            BasicTextField(
+                value = value,
+                onValueChange = {},
+                textStyle = MaterialTheme.typography.displayLarge.merge(
+                    TextStyle(
+                        fontSize = MaterialTheme.typography.displayLarge.fontSize,
+                        color = color,
+                        textAlign = TextAlign.Start
+                    )
+                ),
+                singleLine = true,
+                readOnly = true,
+                modifier = Modifier.weight(DividerWeight)
+            )
+            Spacer(modifier = Modifier.weight(PadSpacerWeight))
+        }
+    }
+
+    @Composable
+    fun Actions(viewModel: CalculatorViewModel, enabledBackSpace: Boolean, modifier: Modifier) {
+        Column(
+            verticalArrangement = Arrangement.SpaceEvenly, modifier = modifier
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Spacer(modifier = Modifier.weight(BackSpaceSpacerWeight))
+                Backspace(
+                    enabled = enabledBackSpace,
+                    onClick = { viewModel.action(CalculatorButton.BACKSPACE) },
+                    modifier = Modifier
+                        .weight(BackSpaceRowWeight)
+                        .aspectRatio(PadButtonWeight)
+                )
+                Spacer(modifier = Modifier.weight(PadSpacerWeight))
+            }
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Spacer(modifier = Modifier.weight(PadSpacerWeight))
+                Divider(
+                    modifier = Modifier.weight(DividerWeight),
                     color = MaterialTheme.colorScheme.outlineVariant
                 )
-                Column(
-                    verticalArrangement = Arrangement.spacedBy((16 * scale).dp),
-                    modifier = Modifier
-                        .verticalScroll(rememberScrollState())
-                        .weight(weight = 1f, fill = false)
-                ) {
-                    NumberPad(scale = scale)
-                }
+                Spacer(modifier = Modifier.weight(PadSpacerWeight))
             }
+            NumberPad(
+                viewModelAction = viewModel::action
+            )
         }
     }
 
     @Composable
-    fun InputField(scale: Float, value: String) {
-        BasicTextField(
-            value = value,
-            onValueChange = {},
-            textStyle = MaterialTheme.typography.displayLarge.merge(
-                TextStyle(
-                    fontSize = (57 * scale).sp,
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Start
-                )
-            ),
-            modifier = Modifier.padding(
-                horizontal = (16 * scale).dp, vertical = (8 * scale).dp
-            ),
-            singleLine = true,
-            readOnly = true
-        )
+    fun Backspace(enabled: Boolean, onClick: () -> Unit = {}, modifier: Modifier) {
+        IconButton(
+            onClick = onClick,
+            modifier = modifier,
+            enabled = enabled,
+            colors = IconButtonDefaults.outlinedIconButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.backspace), contentDescription = ""
+            )
+        }
     }
 
+
     @Composable
-    fun Backspace(scale: Float, enabled: Boolean, onClick: () -> Unit = {}) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = (16 * scale).dp),
-            horizontalArrangement = Arrangement.End
-        ) {
-            IconButton(
-                onClick = onClick,
+    fun NumberPad(viewModelAction: (CalculatorButton) -> Unit) {
+        for (buttonRow in BUTTON_ROWS) {
+            ButtonsRow(
+                buttons = buttonRow,
+                viewModelAction = viewModelAction,
                 modifier = Modifier
-                    .width((48 * scale).dp)
-                    .height((48 * scale).dp),
-                enabled = enabled,
-                colors = IconButtonDefaults.outlinedIconButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.backspace),
-                    contentDescription = ""
-                )
-            }
+                    .fillMaxWidth()
+                    .padding(vertical = 5.dp)
+            )
         }
     }
 
     @Composable
-    fun NumberPad(scale: Float) {
-        for(buttonRow in BUTTON_ROWS) {
-            ButtonRow(scale = scale, buttons = buttonRow)
-        }
-    }
-
-    @Composable
-    fun ButtonRow(scale: Float, buttons: List<CalculatorButton>) {
+    fun ButtonsRow(
+        buttons: List<CalculatorButton>,
+        viewModelAction: (CalculatorButton) -> Unit,
+        modifier: Modifier
+    ) {
         Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = (16 * scale).dp),
-            horizontalArrangement = Arrangement.spacedBy(
-                (16 * scale).dp, alignment = Alignment.CenterHorizontally
-            )
+            modifier = modifier
         ) {
-            if(buttons.size==4) {
-                SecondaryButton(button = buttons[0], scale = scale)
-                SecondaryButton(button = buttons[1], scale = scale)
-                SecondaryButton(button = buttons[2], scale = scale)
-                TertiaryButton(button = buttons[3], scale = scale)
+            if (buttons.size == 4) {
+                buttons.forEachIndexed { index, button ->
+                    Spacer(modifier = Modifier.weight(PadSpacerWeight))
+                    PadButton(
+                        button = button,
+                        onClick = { viewModelAction(button) },
+                        isTertiary = index == 3,
+                        modifier = Modifier
+                            .weight(PadButtonWeight)
+                            .aspectRatio(PadButtonWeight)
+                    )
+                }
+                Spacer(modifier = Modifier.weight(PadSpacerWeight))
             } else {
-                WideSecondaryButton(button = buttons[0], scale = scale)
-                SecondaryButton(button = buttons[1], scale = scale)
-                TertiaryButton(button = buttons[2], scale = scale)
+                buttons.forEachIndexed { index, button ->
+                    Spacer(modifier = Modifier.weight(PadSpacerWeight))
+                    PadButton(
+                        button = button,
+                        onClick = { viewModelAction(button) },
+                        isTertiary = index == 2,
+                        modifier = Modifier
+                            .weight(if (index == 0) WidePadButtonWeight else PadButtonWeight)
+                            .aspectRatio(if (index == 0) WidePadButtonWeight else PadButtonWeight)
+                    )
+                }
+                Spacer(modifier = Modifier.weight(PadSpacerWeight))
             }
         }
     }
 
     @Composable
-    fun SecondaryButton(button: CalculatorButton, scale: Float, onClick: () -> Unit = {}) {
+    fun PadButton(
+        button: CalculatorButton,
+        isTertiary: Boolean = false,
+        onClick: () -> Unit = {},
+        modifier: Modifier,
+    ) {
         Button(
             onClick = onClick,
-            shape = RoundedCornerShape((28 * scale).dp),
-            modifier = Modifier.size(
-                (83 * scale).dp
-            ),
+            shape = PadButtonShape,
+            modifier = modifier,
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                containerColor = if (!isTertiary) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = if (!isTertiary) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onTertiaryContainer
             ),
-            contentPadding = PaddingValues(all = (6.5 * scale).dp)
+            contentPadding = PaddingValues(all = PadButtonContentPadding)
         ) {
             Text(
                 text = button.symbol,
                 style = MaterialTheme.typography.headlineLarge,
-                fontSize = (MaterialTheme.typography.headlineLarge.fontSize.value * scale).sp,
                 maxLines = 1,
                 textAlign = TextAlign.Center
             )
-        }
-    }
-
-    @Composable
-    fun WideSecondaryButton(button: CalculatorButton, scale: Float, onClick: () -> Unit = {}) {
-        Button(
-            onClick = onClick,
-            shape = RoundedCornerShape((28 * scale).dp),
-            modifier = Modifier
-                .height((83 * scale).dp)
-                .width((182 * scale).dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-            ),
-            contentPadding = PaddingValues(all = (6.5 * scale).dp)
-        ) {
-            Text(
-                text = button.symbol,
-                style = MaterialTheme.typography.headlineLarge,
-                fontSize = (MaterialTheme.typography.headlineLarge.fontSize.value * scale).sp,
-                maxLines = 1,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-
-    @Composable
-    fun TertiaryButton(button: CalculatorButton, scale: Float, onClick: () -> Unit = {}) {
-        Button(
-            onClick = onClick,
-            shape = RoundedCornerShape((28 * scale).dp),
-            modifier = Modifier.size(
-                (83 * scale).dp
-            ),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-            ),
-            contentPadding = PaddingValues(all = (6.5 * scale).dp)
-        ) {
-            Text(
-                text = button.symbol,
-                style = MaterialTheme.typography.headlineLarge,
-                fontSize = (MaterialTheme.typography.headlineLarge.fontSize.value * scale).sp,
-                maxLines = 1,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-
-
-    @Preview(showBackground = true)
-    @Composable
-    fun CalculatorPreview() {
-        CalculatorTheme {
-            Surface(
-                modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background
-            ) {
-                CalculatorScreen()
-            }
         }
     }
 }
