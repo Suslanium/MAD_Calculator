@@ -1,4 +1,4 @@
-package com.suslanium.calculator.ui
+package com.suslanium.calculator.presentation
 
 enum class CalculatorButton(val symbol: String) {
     ZERO("0"),
@@ -19,5 +19,6 @@ enum class CalculatorButton(val symbol: String) {
     CLEAR("AC"),
     BRACKETS("()"),
     PERCENT("%"),
-    COMMA(",")
+    COMMA(","),
+    BACKSPACE("")
 }
