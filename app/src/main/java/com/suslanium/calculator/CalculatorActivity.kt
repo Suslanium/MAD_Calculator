@@ -71,7 +71,7 @@ class CalculatorActivity : ComponentActivity() {
                         CalculatorUiState.Input -> input
                         is CalculatorUiState.Result -> it.result
                     }, color = when (it) {
-                        is CalculatorUiState.Error -> MaterialTheme.colorScheme.error
+                        CalculatorUiState.Error -> MaterialTheme.colorScheme.error
                         CalculatorUiState.Input -> MaterialTheme.colorScheme.onBackground
                         is CalculatorUiState.Result -> MaterialTheme.colorScheme.primary
                     }, modifier = Modifier

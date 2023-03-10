@@ -15,34 +15,39 @@ class CalculatorModel {
         private val INNER_BRACKET_REGEX = Regex("\\([^\\(\\)]+\\)")
         private val PERCENT_REGEX = Regex("[${NUMBERS.joinToString("")}$DOT]+$PERCENT")
         private val FIRST_OPERATOR_REGEX = Regex(
-            "((?:(?<=[${OPERATORS.joinToString("\\")}])[${OPERATORS[1]}]|)[${NUMBERS.joinToString("")}$DOT]+)([${OPERATORS[2].toString() + OPERATORS[3].toString()}])([${OPERATORS[1]}]?[${NUMBERS.joinToString("")}$DOT]+)"
+            "((?:(?<=[${OPERATORS.joinToString("\\")}])[${OPERATORS[1]}]|)[${NUMBERS.joinToString("")}$DOT]+)([${OPERATORS[2].toString() + OPERATORS[3].toString()}])([${OPERATORS[1]}]?[${
+                NUMBERS.joinToString(
+                    ""
+                )
+            }$DOT]+)"
         )
         private val SECOND_OPERATOR_REGEX = Regex(
-            "([${OPERATORS[1]}]?[${NUMBERS.joinToString("")}$DOT]+)([${OPERATORS[0].toString() + OPERATORS[1].toString()}])([${OPERATORS[1]}]?[${NUMBERS.joinToString("")}$DOT]+)"
+            "([${OPERATORS[1]}]?[${NUMBERS.joinToString("")}$DOT]+)([${OPERATORS[0].toString() + OPERATORS[1].toString()}])([${OPERATORS[1]}]?[${
+                NUMBERS.joinToString(
+                    ""
+                )
+            }$DOT]+)"
         )
         private const val OPERATOR_ERROR_MESSAGE = "Unknown operator"
         private const val ZERO_DIVISION_MESSAGE = "Division by zero"
         private const val TAG = "Calculator"
+
         enum class CalculatorButton(val symbol: String) {
-            ZERO(NUMBERS[0].toString()),
-            ONE(NUMBERS[1].toString()),
-            TWO(NUMBERS[2].toString()),
-            THREE(NUMBERS[3].toString()),
-            FOUR(NUMBERS[4].toString()),
-            FIVE(NUMBERS[5].toString()),
-            SIX(NUMBERS[6].toString()),
-            SEVEN(NUMBERS[7].toString()),
-            EIGHT(NUMBERS[8].toString()),
-            NINE(NUMBERS[9].toString()),
-            ADD(OPERATORS[0].toString()),
-            SUBTRACT(OPERATORS[1].toString()),
-            MULTIPLY(OPERATORS[2].toString()),
-            DIVIDE(OPERATORS[3].toString()),
-            CALCULATE("="),
-            CLEAR("AC"),
-            BRACKETS(CalculatorModel.BRACKETS.joinToString("")),
-            PERCENT(CalculatorModel.PERCENT.toString()),
-            COMMA(DOT.toString()),
+            ZERO(NUMBERS[0].toString()), ONE(NUMBERS[1].toString()), TWO(NUMBERS[2].toString()), THREE(
+                NUMBERS[3].toString()
+            ),
+            FOUR(NUMBERS[4].toString()), FIVE(NUMBERS[5].toString()), SIX(NUMBERS[6].toString()), SEVEN(
+                NUMBERS[7].toString()
+            ),
+            EIGHT(NUMBERS[8].toString()), NINE(NUMBERS[9].toString()), ADD(OPERATORS[0].toString()), SUBTRACT(
+                OPERATORS[1].toString()
+            ),
+            MULTIPLY(OPERATORS[2].toString()), DIVIDE(OPERATORS[3].toString()), CALCULATE("="), CLEAR(
+                "AC"
+            ),
+            BRACKETS(CalculatorModel.BRACKETS.joinToString("")), PERCENT(CalculatorModel.PERCENT.toString()), COMMA(
+                DOT.toString()
+            ),
             BACKSPACE("")
         }
     }
@@ -124,7 +129,10 @@ class CalculatorModel {
             if (currentExpression.last() in OPERATORS || currentExpression.last() == DOT || openBracketsAmount != 0) {
                 return FORMAT_ERROR_MESSAGE
             }
-            return calculate().toDouble().toString()
+            return when (val result = calculate()) {
+                ERROR_MESSAGE -> ERROR_MESSAGE
+                else -> result.toDouble().toString()
+            }
         } else {
             return EMPTY_STRING
         }
