@@ -1,31 +1,32 @@
 package com.suslanium.calculator
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.animation.*
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.*
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.suslanium.calculator.model.CalculatorModel.Companion.CalculatorButton
 import com.suslanium.calculator.presentation.CalculatorUiState
 import com.suslanium.calculator.presentation.CalculatorViewModel
-import com.suslanium.calculator.ui.theme.*
-import com.suslanium.calculator.model.CalculatorModel.Companion.CalculatorButton
 import com.suslanium.calculator.presentation.CalculatorViewModel.Companion.BUTTON_ROWS
+import com.suslanium.calculator.ui.theme.*
 
 class CalculatorActivity : ComponentActivity() {
 
@@ -70,11 +71,14 @@ class CalculatorActivity : ComponentActivity() {
                         CalculatorUiState.Error -> stringResource(id = R.string.error)
                         CalculatorUiState.Input -> input
                         is CalculatorUiState.Result -> it.result
-                    }, color = when (it) {
+                    },
+                    color = when (it) {
                         CalculatorUiState.Error -> MaterialTheme.colorScheme.error
                         CalculatorUiState.Input -> MaterialTheme.colorScheme.onBackground
                         is CalculatorUiState.Result -> MaterialTheme.colorScheme.primary
-                    }, modifier = Modifier
+                    },
+                    isInput = it == CalculatorUiState.Input,
+                    modifier = Modifier
                         .fillMaxWidth()
                         .weight(ResultRowWeight)
                 )
@@ -105,35 +109,54 @@ class CalculatorActivity : ComponentActivity() {
         }
     }
 
+    @OptIn(ExperimentalFoundationApi::class)
     @Composable
-    fun InputField(value: String, color: Color, modifier: Modifier) {
+    fun InputField(value: String, color: Color, modifier: Modifier, isInput: Boolean) {
         val scrollState = rememberScrollState(0)
+        val interactionSource = remember { MutableInteractionSource() }
+        val clipboardManager: ClipboardManager = LocalClipboardManager.current
+        val haptic = LocalHapticFeedback.current
+        val context = LocalContext.current
         Row(modifier = modifier) {
             Spacer(modifier = Modifier.weight(PadSpacerWeight))
-            BasicTextField(
-                value = value,
-                onValueChange = {},
-                textStyle = MaterialTheme.typography.displayLarge.merge(
+            Text(
+                text = value,
+                style = MaterialTheme.typography.displayLarge.merge(
                     TextStyle(
                         fontSize = MaterialTheme.typography.displayLarge.fontSize,
                         color = color,
                         textAlign = TextAlign.Start
                     )
                 ),
-                singleLine = true,
-                readOnly = true,
-                modifier = Modifier.weight(DividerWeight).horizontalScroll(scrollState)
+                maxLines = 1,
+                modifier = Modifier
+                    .weight(DividerWeight)
+                    .horizontalScroll(scrollState)
+                    .combinedClickable(interactionSource = interactionSource,
+                        indication = null,
+                        onClick = {},
+                        onLongClick = {
+                            clipboardManager.setText(AnnotatedString(value))
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            Toast
+                                .makeText(context, getString(R.string.copied), Toast.LENGTH_SHORT)
+                                .show()
+                        })
             )
             Spacer(modifier = Modifier.weight(PadSpacerWeight))
         }
-        //TODO: Do something about overscroll when there is no overflow
+
         LaunchedEffect(scrollState.maxValue) {
-            scrollState.animateScrollTo(scrollState.maxValue)
+            if (isInput) {
+                scrollState.animateScrollTo(scrollState.maxValue)
+            }
         }
     }
 
     @Composable
-    fun Actions(viewModelAction: (CalculatorButton) -> Unit, enabledBackSpace: Boolean, modifier: Modifier) {
+    fun Actions(
+        viewModelAction: (CalculatorButton) -> Unit, enabledBackSpace: Boolean, modifier: Modifier
+    ) {
         Column(
             verticalArrangement = Arrangement.SpaceEvenly, modifier = modifier
         ) {

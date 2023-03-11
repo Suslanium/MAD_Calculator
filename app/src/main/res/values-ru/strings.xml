@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">Калькулятор</string>
     <string name="error">Ошибка</string>
+    <string name="copied">Скопировано в буфер обмена</string>
 </resources>
