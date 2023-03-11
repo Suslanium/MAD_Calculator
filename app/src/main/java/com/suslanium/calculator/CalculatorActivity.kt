@@ -110,7 +110,7 @@ class CalculatorActivity : ComponentActivity() {
 
     @OptIn(ExperimentalFoundationApi::class)
     @Composable
-    fun InputField(value: String, color: Color, modifier: Modifier, isInput: Boolean) {
+    fun InputField(value: String, color: Color, isInput: Boolean, modifier: Modifier) {
         val scrollState = rememberScrollState(0)
         val interactionSource = remember { MutableInteractionSource() }
         val clipboardManager: ClipboardManager = LocalClipboardManager.current
@@ -175,8 +175,8 @@ class CalculatorActivity : ComponentActivity() {
             Row(modifier = Modifier.fillMaxWidth()) {
                 Spacer(modifier = Modifier.weight(PadSpacerWeight))
                 Divider(
-                    modifier = Modifier.weight(DividerWeight),
-                    color = MaterialTheme.colorScheme.outlineVariant
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    modifier = Modifier.weight(DividerWeight)
                 )
                 Spacer(modifier = Modifier.weight(PadSpacerWeight))
             }
@@ -190,9 +190,9 @@ class CalculatorActivity : ComponentActivity() {
     fun Backspace(enabled: Boolean, onClick: () -> Unit = {}, modifier: Modifier) {
         IconButton(
             onClick = onClick,
-            modifier = modifier,
             enabled = enabled,
-            colors = IconButtonDefaults.outlinedIconButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
+            colors = IconButtonDefaults.outlinedIconButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
+            modifier = modifier
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.backspace), contentDescription = ""
@@ -263,12 +263,12 @@ class CalculatorActivity : ComponentActivity() {
         Button(
             onClick = onClick,
             shape = PadButtonShape,
-            modifier = modifier,
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (!isTertiary) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.tertiaryContainer,
                 contentColor = if (!isTertiary) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onTertiaryContainer
             ),
-            contentPadding = PaddingValues(all = PadButtonContentPadding)
+            contentPadding = PaddingValues(all = PadButtonContentPadding),
+            modifier = modifier,
         ) {
             Text(
                 text = button.symbol,
