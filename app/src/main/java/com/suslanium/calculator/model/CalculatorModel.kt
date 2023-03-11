@@ -3,51 +3,50 @@ package com.suslanium.calculator.model
 import android.util.Log
 
 class CalculatorModel {
+
     companion object {
         private val OPERATORS = charArrayOf('+', '-', '×', '÷')
         private val BRACKETS = charArrayOf('(', ')')
         private const val DOT = '.'
         private const val PERCENT = '%'
-        private val NUMBERS = charArrayOf('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
+        private val DIGITS = charArrayOf('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
+        private const val POSITIVE_INF = "Infinity"
+        private const val NOT_A_NUMBER = "NaN"
+
         const val EMPTY_STRING = ""
         const val FORMAT_ERROR_MESSAGE = "Format error"
         const val ERROR_MESSAGE = "Error"
-        private val INNER_BRACKET_REGEX = Regex("\\([^\\(\\)]+\\)")
-        private val PERCENT_REGEX = Regex("[${NUMBERS.joinToString("")}$DOT]+$PERCENT")
-        private val FIRST_OPERATOR_REGEX = Regex(
-            "((?:(?<=[${OPERATORS.joinToString("\\")}])[${OPERATORS[1]}]|)[${NUMBERS.joinToString("")}$DOT]+)([${OPERATORS[2].toString() + OPERATORS[3].toString()}])([${OPERATORS[1]}]?[${
-                NUMBERS.joinToString(
-                    ""
-                )
-            }$DOT]+)"
-        )
-        private val SECOND_OPERATOR_REGEX = Regex(
-            "([${OPERATORS[1]}]?[${NUMBERS.joinToString("")}$DOT]+)([${OPERATORS[0].toString() + OPERATORS[1].toString()}])([${OPERATORS[1]}]?[${
-                NUMBERS.joinToString(
-                    ""
-                )
-            }$DOT]+)"
-        )
         private const val OPERATOR_ERROR_MESSAGE = "Unknown operator"
         private const val ZERO_DIVISION_MESSAGE = "Division by zero"
         private const val TAG = "Calculator"
 
+        private val NUMBER = "(?:(?:[${DIGITS.joinToString("")}\\$DOT]|E${OPERATORS[1]}[${DIGITS.joinToString("")}]|E[${DIGITS.joinToString("")}])+|$POSITIVE_INF|$NOT_A_NUMBER)"
+        private val MINUS = "[${OPERATORS[1]}]?"
+        private val INNER_BRACKET_REGEX = Regex("\\([^\\(\\)]+\\)")
+        private val PERCENT_REGEX = Regex("$NUMBER$PERCENT")
+        private val MINUS_AFTER_OPERATOR = "(?:(?<=[${OPERATORS.joinToString("\\")}])[${OPERATORS[1]}]|)"
+        private val FIRST_OPERATOR_REGEX = Regex("($MINUS_AFTER_OPERATOR$NUMBER)([${OPERATORS[2].toString() + OPERATORS[3].toString()}])($MINUS$NUMBER)")
+        private val SECOND_OPERATOR_REGEX = Regex("($MINUS$NUMBER)([${OPERATORS[0].toString() + OPERATORS[1].toString()}])($MINUS$NUMBER)")
+
         enum class CalculatorButton(val symbol: String) {
-            ZERO(NUMBERS[0].toString()), ONE(NUMBERS[1].toString()), TWO(NUMBERS[2].toString()), THREE(
-                NUMBERS[3].toString()
-            ),
-            FOUR(NUMBERS[4].toString()), FIVE(NUMBERS[5].toString()), SIX(NUMBERS[6].toString()), SEVEN(
-                NUMBERS[7].toString()
-            ),
-            EIGHT(NUMBERS[8].toString()), NINE(NUMBERS[9].toString()), ADD(OPERATORS[0].toString()), SUBTRACT(
-                OPERATORS[1].toString()
-            ),
-            MULTIPLY(OPERATORS[2].toString()), DIVIDE(OPERATORS[3].toString()), CALCULATE("="), CLEAR(
-                "AC"
-            ),
-            BRACKETS(CalculatorModel.BRACKETS.joinToString("")), PERCENT(CalculatorModel.PERCENT.toString()), COMMA(
-                DOT.toString()
-            ),
+            ZERO(DIGITS[0].toString()),
+            ONE(DIGITS[1].toString()),
+            TWO(DIGITS[2].toString()),
+            THREE(DIGITS[3].toString()),
+            FOUR(DIGITS[4].toString()),
+            FIVE(DIGITS[5].toString()),
+            SIX(DIGITS[6].toString()),
+            SEVEN(DIGITS[7].toString()),
+            EIGHT(DIGITS[8].toString()),
+            NINE(DIGITS[9].toString()),
+            ADD(OPERATORS[0].toString()),
+            SUBTRACT(OPERATORS[1].toString()),
+            MULTIPLY(OPERATORS[2].toString()),
+            DIVIDE(OPERATORS[3].toString()),
+            CALCULATE("="),
+            CLEAR("AC"),
+            BRACKETS(CalculatorModel.BRACKETS.joinToString("")),
+            PERCENT(CalculatorModel.PERCENT.toString()), COMMA(DOT.toString()),
             BACKSPACE("")
         }
     }
@@ -61,7 +60,7 @@ class CalculatorModel {
         if (currentExpression.isNotEmpty()) {
             if (currentExpression.last() in OPERATORS && (currentExpression.length < 2 || !(currentExpression.last() == OPERATORS[1] && currentExpression[currentExpression.lastIndex - 1] == BRACKETS[0]))) {
                 currentExpression = currentExpression.dropLast(1) + operator.symbol
-            } else if ((currentExpression.last() == BRACKETS[1] || currentExpression.last() in NUMBERS || currentExpression.last() == PERCENT) || (currentExpression.last() == BRACKETS[0] && operator.symbol[0] == OPERATORS[1])) {
+            } else if ((currentExpression.last() == BRACKETS[1] || currentExpression.last() in DIGITS || currentExpression.last() == PERCENT) || (currentExpression.last() == BRACKETS[0] && operator.symbol[0] == OPERATORS[1])) {
                 currentExpression += operator.symbol
             }
         }
@@ -70,7 +69,7 @@ class CalculatorModel {
 
     fun addComma(): String {
         if (currentExpression.isNotEmpty()) {
-            if (currentExpression.last() in NUMBERS && currentExpression.lastIndexOf(DOT) <= currentExpression.lastIndexOfAny(
+            if (currentExpression.last() in DIGITS && currentExpression.lastIndexOf(DOT) <= currentExpression.lastIndexOfAny(
                     OPERATORS
                 )
             ) {
@@ -91,7 +90,7 @@ class CalculatorModel {
         if (currentExpression.isEmpty() || (currentExpression.isNotEmpty() && (currentExpression.last() in OPERATORS || currentExpression.last() == BRACKETS[0]))) {
             currentExpression += BRACKETS[0]
             openBracketsAmount++
-        } else if (openBracketsAmount > 0 && (currentExpression.isNotEmpty() && (currentExpression.last() in NUMBERS || currentExpression.last() == PERCENT || currentExpression.last() == BRACKETS[1]))) {
+        } else if (openBracketsAmount > 0 && (currentExpression.isNotEmpty() && (currentExpression.last() in DIGITS || currentExpression.last() == PERCENT || currentExpression.last() == BRACKETS[1]))) {
             currentExpression += BRACKETS[1]
             openBracketsAmount--
         }
@@ -99,7 +98,7 @@ class CalculatorModel {
     }
 
     fun percentage(): String {
-        if (currentExpression.isNotEmpty() && (currentExpression.last() in NUMBERS || currentExpression.last() == BRACKETS[1])) {
+        if (currentExpression.isNotEmpty() && (currentExpression.last() in DIGITS || currentExpression.last() == BRACKETS[1])) {
             currentExpression += PERCENT
         }
         return currentExpression
@@ -131,7 +130,7 @@ class CalculatorModel {
             }
             return when (val result = calculate()) {
                 ERROR_MESSAGE -> ERROR_MESSAGE
-                else -> result.toDouble().toString()
+                else -> result.toDoubleWithInfOrNan().toStringWithoutTrailingZeros()
             }
         } else {
             return EMPTY_STRING
@@ -157,7 +156,7 @@ class CalculatorModel {
         expressionCopy = "0$expressionCopy"
         while (PERCENT_REGEX.containsMatchIn(expressionCopy)) {
             expressionCopy = expressionCopy.replace(PERCENT_REGEX) {
-                (it.value.dropLast(1).toDouble() / 100).toString()
+                (it.value.dropLast(1).toDoubleWithInfOrNan() / 100).toString()
             }
         }
         while (FIRST_OPERATOR_REGEX.containsMatchIn(expressionCopy)) {
@@ -186,16 +185,41 @@ class CalculatorModel {
     private fun evaluateTwoOperandExpression(
         firstOperand: String, secondOperand: String, operator: String
     ): String {
-        val first = firstOperand.toDouble()
-        val second = secondOperand.toDouble()
+        val first = firstOperand.toDoubleWithInfOrNan()
+        val second = secondOperand.toDoubleWithInfOrNan()
         return when (operator[0]) {
             OPERATORS[0] -> (first + second).toString()
             OPERATORS[1] -> (first - second).toString()
             OPERATORS[2] -> (first * second).toString()
-            OPERATORS[3] -> if (second != 0.0) (first / second).toString() else throw ArithmeticException(
-                ZERO_DIVISION_MESSAGE
-            )
+            OPERATORS[3] -> if (second != 0.0) (first / second).toString() else throw ArithmeticException(ZERO_DIVISION_MESSAGE)
             else -> throw ArithmeticException(OPERATOR_ERROR_MESSAGE)
+        }
+    }
+
+    private fun String.toDoubleWithInfOrNan(): Double {
+        return when (this) {
+            POSITIVE_INF -> Double.POSITIVE_INFINITY
+            OPERATORS[1].toString() + POSITIVE_INF -> Double.NEGATIVE_INFINITY
+            NOT_A_NUMBER -> Double.NaN
+            else -> this.toDouble()
+        }
+    }
+
+    private fun Double.toStringWithoutTrailingZeros(): String {
+        return when (this) {
+            Double.NaN, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY -> this.toString()
+            else -> {
+                if(this % 1.0 == 0.0) {
+                    val result = this.toString()
+                    if(result.endsWith(".0")) {
+                        result.dropLast(2)
+                    } else {
+                        result
+                    }
+                } else {
+                    this.toString()
+                }
+            }
         }
     }
 }
