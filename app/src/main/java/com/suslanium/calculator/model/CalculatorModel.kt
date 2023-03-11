@@ -57,10 +57,10 @@ class CalculatorModel {
     private var openBracketsAmount = 0
 
     fun addOrChangeOperator(operator: CalculatorButton): String {
-        if (currentExpression.isNotEmpty()) {
+        if (currentExpression.isNotEmpty() && operator.symbol[0] in OPERATORS) {
             if (currentExpression.last() in OPERATORS && (currentExpression.length < 2 || !(currentExpression.last() == OPERATORS[1] && currentExpression[currentExpression.lastIndex - 1] == BRACKETS[0]))) {
                 currentExpression = currentExpression.dropLast(1) + operator.symbol
-            } else if ((currentExpression.last() == BRACKETS[1] || currentExpression.last() in DIGITS || currentExpression.last() == PERCENT) || (currentExpression.last() == BRACKETS[0] && operator.symbol[0] == OPERATORS[1])) {
+            } else if (currentExpression.last() == BRACKETS[1] || currentExpression.last() in DIGITS || currentExpression.last() == PERCENT || currentExpression.last() == BRACKETS[0] && operator.symbol[0] == OPERATORS[1]) {
                 currentExpression += operator.symbol
             }
         }
@@ -69,10 +69,7 @@ class CalculatorModel {
 
     fun addComma(): String {
         if (currentExpression.isNotEmpty()) {
-            if (currentExpression.last() in DIGITS && currentExpression.lastIndexOf(DOT) <= currentExpression.lastIndexOfAny(
-                    OPERATORS
-                )
-            ) {
+            if (currentExpression.last() in DIGITS && currentExpression.lastIndexOf(DOT) <= currentExpression.lastIndexOfAny(OPERATORS)) {
                 currentExpression += DOT
             }
         }
@@ -80,17 +77,17 @@ class CalculatorModel {
     }
 
     fun addNumber(number: CalculatorButton): String {
-        if (currentExpression.isEmpty() || (currentExpression.last() != BRACKETS[1] && currentExpression.last() != PERCENT)) {
+        if (number.symbol[0] in DIGITS && (currentExpression.isEmpty() || currentExpression.last() != BRACKETS[1] && currentExpression.last() != PERCENT)) {
             currentExpression += number.symbol
         }
         return currentExpression
     }
 
     fun addBracket(): String {
-        if (currentExpression.isEmpty() || (currentExpression.isNotEmpty() && (currentExpression.last() in OPERATORS || currentExpression.last() == BRACKETS[0]))) {
+        if (currentExpression.isEmpty() || currentExpression.isNotEmpty() && (currentExpression.last() in OPERATORS || currentExpression.last() == BRACKETS[0])) {
             currentExpression += BRACKETS[0]
             openBracketsAmount++
-        } else if (openBracketsAmount > 0 && (currentExpression.isNotEmpty() && (currentExpression.last() in DIGITS || currentExpression.last() == PERCENT || currentExpression.last() == BRACKETS[1]))) {
+        } else if (openBracketsAmount > 0 && currentExpression.isNotEmpty() && (currentExpression.last() in DIGITS || currentExpression.last() == PERCENT || currentExpression.last() == BRACKETS[1])) {
             currentExpression += BRACKETS[1]
             openBracketsAmount--
         }
