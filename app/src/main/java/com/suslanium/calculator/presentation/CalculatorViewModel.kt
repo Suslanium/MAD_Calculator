@@ -43,7 +43,7 @@ class CalculatorViewModel : ViewModel() {
 
     fun action(button: CalculatorButton) {
         if (_state.value !is CalculatorUiState.Input) {
-            model.clear()
+            _input.value = model.clear()
             _state.value = CalculatorUiState.Input
         }
         when (button) {
