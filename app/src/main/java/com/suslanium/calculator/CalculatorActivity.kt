@@ -19,9 +19,7 @@ import androidx.compose.ui.platform.*
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
-import com.suslanium.calculator.model.CalculatorModel.Companion.CalculatorButton
 import com.suslanium.calculator.presentation.CalculatorUiState
 import com.suslanium.calculator.presentation.CalculatorViewModel
 import com.suslanium.calculator.presentation.CalculatorViewModel.Companion.BUTTON_ROWS
@@ -45,13 +43,13 @@ class CalculatorActivity : ComponentActivity() {
 
     @OptIn(ExperimentalAnimationApi::class)
     @Composable
-    fun CalculatorScreen(viewModel: CalculatorViewModel) {
+    private fun CalculatorScreen(viewModel: CalculatorViewModel) {
         val configuration = LocalConfiguration.current
         val screenHeight = configuration.screenHeightDp
         val state by viewModel.state.observeAsState(initial = CalculatorUiState.Input)
         val input by viewModel.input.observeAsState(initial = "")
         Column(modifier = Modifier.fillMaxSize()) {
-            if (screenHeight > 700) {
+            if (screenHeight > AppTitleMinRequiredHeight) {
                 Spacer(modifier = Modifier.weight(TitleRowSpacerWeight))
                 TitleText(
                     modifier = Modifier
@@ -60,11 +58,7 @@ class CalculatorActivity : ComponentActivity() {
                 )
             }
             Spacer(modifier = Modifier.weight(ResultRowSpacerWeight))
-            AnimatedContent(targetState = state, transitionSpec = {
-                (slideInVertically { width -> width } + fadeIn() with slideOutVertically { width -> -width } + fadeOut()).using(
-                    SizeTransform(clip = true)
-                )
-            }) {
+            AnimatedContent(targetState = state, transitionSpec = inputFieldTransitionSpec()) {
                 InputField(
                     value = when (it) {
                         CalculatorUiState.Error -> stringResource(id = R.string.error)
@@ -83,20 +77,43 @@ class CalculatorActivity : ComponentActivity() {
                 )
             }
             Spacer(modifier = Modifier.weight(ActionsVerticalSpacerWeight))
-            Actions(
-                viewModelAction = viewModel::action,
-                enabledBackSpace = input.isNotEmpty() && state is CalculatorUiState.Input,
+            Column(
+                verticalArrangement = Arrangement.SpaceEvenly,
                 modifier = Modifier
                     .weight(ActionsWeight)
                     .verticalScroll(
                         rememberScrollState()
                     )
-            )
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Spacer(modifier = Modifier.weight(BackSpaceSpacerWeight))
+                    Backspace(
+                        enabled = input.isNotEmpty() && state is CalculatorUiState.Input,
+                        onClick = { viewModel.action(CalculatorButton.BACKSPACE) },
+                        modifier = Modifier
+                            .weight(BackSpaceRowWeight)
+                            .aspectRatio(PadButtonWeight)
+                    )
+                    Spacer(modifier = Modifier.weight(PadSpacerWeight))
+                }
+                Actions(viewModel::action)
+            }
         }
     }
 
     @Composable
-    fun TitleText(modifier: Modifier) {
+    @OptIn(ExperimentalAnimationApi::class)
+    private fun inputFieldTransitionSpec(): AnimatedContentScope<CalculatorUiState>.() -> ContentTransform =
+        {
+            (slideInVertically { width -> width } + fadeIn() with slideOutVertically { width -> -width } + fadeOut()).using(
+                SizeTransform(clip = true)
+            )
+        }
+
+    @Composable
+    private fun TitleText(modifier: Modifier) {
         Row(modifier = modifier) {
             Spacer(modifier = Modifier.weight(PadSpacerWeight))
             Text(
@@ -110,7 +127,7 @@ class CalculatorActivity : ComponentActivity() {
 
     @OptIn(ExperimentalFoundationApi::class)
     @Composable
-    fun InputField(value: String, color: Color, isInput: Boolean, modifier: Modifier) {
+    private fun InputField(value: String, color: Color, isInput: Boolean, modifier: Modifier) {
         val scrollState = rememberScrollState(0)
         val interactionSource = remember { MutableInteractionSource() }
         val clipboardManager: ClipboardManager = LocalClipboardManager.current
@@ -120,13 +137,9 @@ class CalculatorActivity : ComponentActivity() {
             Spacer(modifier = Modifier.weight(PadSpacerWeight))
             Text(
                 text = value,
-                style = MaterialTheme.typography.displayLarge.merge(
-                    TextStyle(
-                        fontSize = MaterialTheme.typography.displayLarge.fontSize,
-                        color = color,
-                        textAlign = TextAlign.Start
-                    )
-                ),
+                style = MaterialTheme.typography.displayLarge,
+                color = color,
+                textAlign = TextAlign.Start,
                 maxLines = 1,
                 modifier = Modifier
                     .weight(DividerWeight)
@@ -153,41 +166,22 @@ class CalculatorActivity : ComponentActivity() {
     }
 
     @Composable
-    fun Actions(
-        viewModelAction: (CalculatorButton) -> Unit, enabledBackSpace: Boolean, modifier: Modifier
-    ) {
-        Column(
-            verticalArrangement = Arrangement.SpaceEvenly, modifier = modifier
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Spacer(modifier = Modifier.weight(BackSpaceSpacerWeight))
-                Backspace(
-                    enabled = enabledBackSpace,
-                    onClick = { viewModelAction(CalculatorButton.BACKSPACE) },
-                    modifier = Modifier
-                        .weight(BackSpaceRowWeight)
-                        .aspectRatio(PadButtonWeight)
-                )
-                Spacer(modifier = Modifier.weight(PadSpacerWeight))
-            }
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Spacer(modifier = Modifier.weight(PadSpacerWeight))
-                Divider(
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    modifier = Modifier.weight(DividerWeight)
-                )
-                Spacer(modifier = Modifier.weight(PadSpacerWeight))
-            }
-            NumberPad(
-                viewModelAction = viewModelAction
+    private fun Actions(viewModelAction: (CalculatorButton) -> Unit) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Spacer(modifier = Modifier.weight(PadSpacerWeight))
+            Divider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                modifier = Modifier.weight(DividerWeight)
             )
+            Spacer(modifier = Modifier.weight(PadSpacerWeight))
         }
+        NumberPad(
+            viewModelAction = viewModelAction
+        )
     }
 
     @Composable
-    fun Backspace(enabled: Boolean, onClick: () -> Unit = {}, modifier: Modifier) {
+    private fun Backspace(enabled: Boolean, onClick: () -> Unit = {}, modifier: Modifier) {
         IconButton(
             onClick = onClick,
             enabled = enabled,
@@ -202,7 +196,7 @@ class CalculatorActivity : ComponentActivity() {
 
 
     @Composable
-    fun NumberPad(viewModelAction: (CalculatorButton) -> Unit) {
+    private fun NumberPad(viewModelAction: (CalculatorButton) -> Unit) {
         for (buttonRow in BUTTON_ROWS) {
             ButtonsRow(
                 buttons = buttonRow,
@@ -215,7 +209,7 @@ class CalculatorActivity : ComponentActivity() {
     }
 
     @Composable
-    fun ButtonsRow(
+    private fun ButtonsRow(
         buttons: List<CalculatorButton>,
         viewModelAction: (CalculatorButton) -> Unit,
         modifier: Modifier
@@ -223,38 +217,23 @@ class CalculatorActivity : ComponentActivity() {
         Row(
             modifier = modifier
         ) {
-            if (buttons.size == 4) {
-                buttons.forEachIndexed { index, button ->
-                    Spacer(modifier = Modifier.weight(PadSpacerWeight))
-                    PadButton(
-                        button = button,
-                        onClick = { viewModelAction(button) },
-                        isTertiary = index == 3,
-                        modifier = Modifier
-                            .weight(PadButtonWeight)
-                            .aspectRatio(PadButtonWeight)
-                    )
-                }
+            buttons.forEachIndexed { index, button ->
                 Spacer(modifier = Modifier.weight(PadSpacerWeight))
-            } else {
-                buttons.forEachIndexed { index, button ->
-                    Spacer(modifier = Modifier.weight(PadSpacerWeight))
-                    PadButton(
-                        button = button,
-                        onClick = { viewModelAction(button) },
-                        isTertiary = index == 2,
-                        modifier = Modifier
-                            .weight(if (index == 0) WidePadButtonWeight else PadButtonWeight)
-                            .aspectRatio(if (index == 0) WidePadButtonWeight else PadButtonWeight)
-                    )
-                }
-                Spacer(modifier = Modifier.weight(PadSpacerWeight))
+                PadButton(
+                    button = button,
+                    onClick = { viewModelAction(button) },
+                    isTertiary = index == buttons.size - 1,
+                    modifier = Modifier
+                        .weight(if(button == CalculatorButton.ZERO) WidePadButtonWeight else PadButtonWeight)
+                        .aspectRatio(if (button == CalculatorButton.ZERO) WidePadButtonWeight else PadButtonWeight)
+                )
             }
+            Spacer(modifier = Modifier.weight(PadSpacerWeight))
         }
     }
 
     @Composable
-    fun PadButton(
+    private fun PadButton(
         button: CalculatorButton,
         isTertiary: Boolean = false,
         onClick: () -> Unit = {},
@@ -264,8 +243,8 @@ class CalculatorActivity : ComponentActivity() {
             onClick = onClick,
             shape = PadButtonShape,
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (!isTertiary) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.tertiaryContainer,
-                contentColor = if (!isTertiary) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onTertiaryContainer
+                containerColor = if (isTertiary) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = if (isTertiary) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
             ),
             contentPadding = PaddingValues(all = PadButtonContentPadding),
             modifier = modifier,

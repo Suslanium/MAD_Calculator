@@ -17,3 +17,4 @@ const val ActionsVerticalSpacerWeight = 0.04f
 const val ActionsWeight = 0.8f
 val PadButtonContentPadding = 4.dp
 val MinVerticalRowPadding = 5.dp
+const val AppTitleMinRequiredHeight = 700

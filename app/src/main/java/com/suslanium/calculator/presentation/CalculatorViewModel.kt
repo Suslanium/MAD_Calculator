@@ -3,7 +3,8 @@ package com.suslanium.calculator.presentation
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.suslanium.calculator.model.CalculatorModel.Companion.CalculatorButton
+import com.suslanium.calculator.CalculatorButton
+import com.suslanium.calculator.model.CalculationResult
 import com.suslanium.calculator.model.CalculatorModel
 
 class CalculatorViewModel : ViewModel() {
@@ -12,6 +13,7 @@ class CalculatorViewModel : ViewModel() {
     private val _state: MutableLiveData<CalculatorUiState> =
         MutableLiveData(CalculatorUiState.Input)
     val state: LiveData<CalculatorUiState> = _state
+
     private val _input: MutableLiveData<String> = MutableLiveData(model.currentExpression)
     val input: LiveData<String> = _input
 
@@ -52,12 +54,12 @@ class CalculatorViewModel : ViewModel() {
             }
             CalculatorButton.CALCULATE -> {
                 when (val result = model.checkAndCalculate()) {
-                    CalculatorModel.ERROR_MESSAGE -> {
+                    CalculationResult.Failure -> {
                         _state.value = CalculatorUiState.Error
                     }
-                    CalculatorModel.EMPTY_STRING, CalculatorModel.FORMAT_ERROR_MESSAGE -> {}
-                    else -> {
-                        _state.value = CalculatorUiState.Result(result)
+                    CalculationResult.Nothing -> {}
+                    is CalculationResult.Success -> {
+                        _state.value = CalculatorUiState.Result(result.output)
                     }
                 }
             }
