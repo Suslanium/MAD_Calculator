@@ -44,12 +44,10 @@ class CalculatorActivity : ComponentActivity() {
     @OptIn(ExperimentalAnimationApi::class)
     @Composable
     private fun CalculatorScreen(viewModel: CalculatorViewModel) {
-        val configuration = LocalConfiguration.current
-        val screenHeight = configuration.screenHeightDp
         val state by viewModel.state.observeAsState(initial = CalculatorUiState.Input)
         val input by viewModel.input.observeAsState(initial = "")
         Column(modifier = Modifier.fillMaxSize()) {
-            if (screenHeight > AppTitleMinRequiredHeight) {
+            if (LocalConfiguration.current.screenHeightDp > AppTitleMinRequiredHeight) {
                 Spacer(modifier = Modifier.weight(TitleRowSpacerWeight))
                 TitleText(
                     modifier = Modifier

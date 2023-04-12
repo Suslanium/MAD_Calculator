@@ -3,9 +3,11 @@ package com.suslanium.calculator.presentation
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.suslanium.calculator.CalculatorButton
 import com.suslanium.calculator.model.CalculationResult
 import com.suslanium.calculator.model.CalculatorModel
+import kotlinx.coroutines.launch
 
 class CalculatorViewModel : ViewModel() {
     private val model = CalculatorModel()
@@ -14,7 +16,7 @@ class CalculatorViewModel : ViewModel() {
         MutableLiveData(CalculatorUiState.Input)
     val state: LiveData<CalculatorUiState> = _state
 
-    private val _input: MutableLiveData<String> = MutableLiveData(model.currentExpression)
+    private val _input: MutableLiveData<String> = MutableLiveData()
     val input: LiveData<String> = _input
 
     companion object {
@@ -43,43 +45,47 @@ class CalculatorViewModel : ViewModel() {
         )
     }
 
+    init {
+        viewModelScope.launch {
+            model.expressionStateFlow.collect {result ->
+                when(result) {
+                    CalculationResult.Failure -> _state.value = CalculatorUiState.Error
+                    is CalculationResult.Input -> _input.value = result.expression
+                    is CalculationResult.Success -> _state.value = CalculatorUiState.Result(result.output)
+                }
+            }
+        }
+    }
+
     fun action(button: CalculatorButton) {
         if (_state.value !is CalculatorUiState.Input) {
-            _input.value = model.clear()
+            model.clear()
             _state.value = CalculatorUiState.Input
         }
         when (button) {
             CalculatorButton.ADD, CalculatorButton.SUBTRACT, CalculatorButton.MULTIPLY, CalculatorButton.DIVIDE -> {
-                _input.value = model.addOrChangeOperator(button)
+                model.addOrChangeOperator(button)
             }
             CalculatorButton.CALCULATE -> {
-                when (val result = model.checkAndCalculate()) {
-                    CalculationResult.Failure -> {
-                        _state.value = CalculatorUiState.Error
-                    }
-                    CalculationResult.Nothing -> {}
-                    is CalculationResult.Success -> {
-                        _state.value = CalculatorUiState.Result(result.output)
-                    }
-                }
+                model.checkAndCalculate()
             }
             CalculatorButton.CLEAR -> {
-                _input.value = model.clear()
+                model.clear()
             }
             CalculatorButton.BRACKETS -> {
-                _input.value = model.addBracket()
+                model.addBracket()
             }
             CalculatorButton.PERCENT -> {
-                _input.value = model.percentage()
+                model.percentage()
             }
             CalculatorButton.COMMA -> {
-                _input.value = model.addComma()
+                model.addComma()
             }
             CalculatorButton.BACKSPACE -> {
-                _input.value = model.backspace()
+                model.backspace()
             }
             else -> {
-                _input.value = model.addNumber(button)
+                model.addDigit(button)
             }
         }
     }

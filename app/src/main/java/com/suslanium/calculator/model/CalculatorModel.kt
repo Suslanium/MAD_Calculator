@@ -2,6 +2,8 @@ package com.suslanium.calculator.model
 
 import android.util.Log
 import com.suslanium.calculator.CalculatorButton
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class CalculatorModel {
 
@@ -20,7 +22,11 @@ class CalculatorModel {
         private const val TAG = "Calculator"
 
         private val NUMBER =
-            "(?:(?:[${DIGITS.joinToString("")}\\$DOT]|E${OPERATORS[1]}[${DIGITS.joinToString("")}]|E[${DIGITS.joinToString("")}])+|$POSITIVE_INF|$NOT_A_NUMBER)"
+            "(?:(?:[${DIGITS.joinToString("")}\\$DOT]|E${OPERATORS[1]}[${DIGITS.joinToString("")}]|E[${
+                DIGITS.joinToString(
+                    ""
+                )
+            }])+|$POSITIVE_INF|$NOT_A_NUMBER)"
         private val MINUS = "[${OPERATORS[1]}]?"
         private val INNER_BRACKET_REGEX = Regex("\\([^\\(\\)]+\\)")
         private val PERCENT_REGEX = Regex("$NUMBER$PERCENT")
@@ -30,90 +36,107 @@ class CalculatorModel {
             Regex("($MINUS_AFTER_OPERATOR$NUMBER)([${OPERATORS[2].toString() + OPERATORS[3].toString()}])($MINUS$NUMBER)")
         private val SECOND_OPERATOR_REGEX =
             Regex("($MINUS$NUMBER)([${OPERATORS[0].toString() + OPERATORS[1].toString()}])($MINUS$NUMBER)")
+        private val LEADING_ZEROS_REGEX = Regex("^${MINUS}${DIGITS[0]}+(?!$)")
     }
 
-    var currentExpression: String = EMPTY_STRING
-        private set
+    private var currentExpression: String = EMPTY_STRING
+
+    private val _expressionStateFlow =
+        MutableStateFlow<CalculationResult>(CalculationResult.Input(currentExpression))
+    val expressionStateFlow = _expressionStateFlow.asStateFlow()
 
     private var openBracketsAmount = 0
 
-    fun addOrChangeOperator(operator: CalculatorButton): String {
-        if (currentExpression.isNotEmpty() && operator.char in OPERATORS) {
-            if (currentExpression.last() in OPERATORS && (currentExpression.length < 2 || !(currentExpression.last() == OPERATORS[1] && currentExpression[currentExpression.lastIndex - 1] == BRACKETS[0]))) {
-                currentExpression = currentExpression.dropLast(1) + operator.symbol
-            } else if (currentExpression.last() == BRACKETS[1] || currentExpression.last() in DIGITS || currentExpression.last() == PERCENT || currentExpression.last() == BRACKETS[0] && operator.char == OPERATORS[1]) {
-                currentExpression += operator.symbol
-            }
+    private fun canAddOperator(operator: CalculatorButton) =
+        currentExpression.last() == BRACKETS[1] || currentExpression.last() in DIGITS || currentExpression.last() == PERCENT || currentExpression.last() == BRACKETS[0] && operator.char == OPERATORS[1]
+
+    private fun canSwitchOperator() =
+        currentExpression.last() in OPERATORS && (currentExpression.length < 2 || !(currentExpression.last() == OPERATORS[1] && currentExpression[currentExpression.lastIndex - 1] == BRACKETS[0]))
+
+    private fun canAddComma() =
+        currentExpression.isNotEmpty() && currentExpression.last() in DIGITS && currentExpression.lastIndexOf(
+            DOT
+        ) <= currentExpression.lastIndexOfAny(OPERATORS)
+
+    private fun canAddDigit(number: CalculatorButton) =
+        number.char in DIGITS && (currentExpression.isEmpty() || currentExpression.last() != BRACKETS[1] && currentExpression.last() != PERCENT)
+
+    private fun canAddClosingBracket() =
+        openBracketsAmount > 0 && currentExpression.isNotEmpty() && (currentExpression.last() in DIGITS || currentExpression.last() == PERCENT || currentExpression.last() == BRACKETS[1])
+
+    private fun canAddOpeningBracket() =
+        currentExpression.isEmpty() || currentExpression.isNotEmpty() && (currentExpression.last() in OPERATORS || currentExpression.last() == BRACKETS[0])
+
+    private fun canAddPercentSign() =
+        currentExpression.isNotEmpty() && (currentExpression.last() in DIGITS || currentExpression.last() == BRACKETS[1])
+
+
+    fun addOrChangeOperator(operator: CalculatorButton) {
+        if (currentExpression.isEmpty() || operator.char !in OPERATORS) return
+        if (canSwitchOperator()) {
+            currentExpression = currentExpression.dropLast(1) + operator.symbol
+        } else if (canAddOperator(operator)) {
+            currentExpression += operator.symbol
         }
-        return currentExpression
+        _expressionStateFlow.value = CalculationResult.Input(currentExpression)
     }
 
-    fun addComma(): String {
-        if (currentExpression.isNotEmpty() && currentExpression.last() in DIGITS && currentExpression.lastIndexOf(DOT) <= currentExpression.lastIndexOfAny(OPERATORS)
-        ) {
+    fun addComma() {
+        if (canAddComma()) {
             currentExpression += DOT
+            _expressionStateFlow.value = CalculationResult.Input(currentExpression)
         }
-        return currentExpression
     }
 
-    fun addNumber(number: CalculatorButton): String {
-        if (number.char in DIGITS && (currentExpression.isEmpty() || currentExpression.last() != BRACKETS[1] && currentExpression.last() != PERCENT)) {
+    fun addDigit(number: CalculatorButton) {
+        if (canAddDigit(number)) {
             currentExpression += number.symbol
+            _expressionStateFlow.value = CalculationResult.Input(currentExpression)
         }
-        return currentExpression
     }
 
-    fun addBracket(): String {
-        if (currentExpression.isEmpty() || currentExpression.isNotEmpty() && (currentExpression.last() in OPERATORS || currentExpression.last() == BRACKETS[0])) {
+    fun addBracket() {
+        if (canAddOpeningBracket()) {
             currentExpression += BRACKETS[0]
             openBracketsAmount++
-        } else if (openBracketsAmount > 0 && currentExpression.isNotEmpty() && (currentExpression.last() in DIGITS || currentExpression.last() == PERCENT || currentExpression.last() == BRACKETS[1])) {
+        } else if (canAddClosingBracket()) {
             currentExpression += BRACKETS[1]
             openBracketsAmount--
         }
-        return currentExpression
+        _expressionStateFlow.value = CalculationResult.Input(currentExpression)
     }
 
-    fun percentage(): String {
-        if (currentExpression.isNotEmpty() && (currentExpression.last() in DIGITS || currentExpression.last() == BRACKETS[1])) {
+    fun percentage() {
+        if (canAddPercentSign()) {
             currentExpression += PERCENT
+            _expressionStateFlow.value = CalculationResult.Input(currentExpression)
         }
-        return currentExpression
     }
 
-    fun clear(): String {
+    fun clear() {
         currentExpression = EMPTY_STRING
         openBracketsAmount = 0
-        return currentExpression
+        _expressionStateFlow.value = CalculationResult.Input(currentExpression)
     }
 
-    fun backspace(): String {
-        if (currentExpression.isNotEmpty()) {
-            if (currentExpression.last() == BRACKETS[1]) {
-                openBracketsAmount++
-            } else if (currentExpression.last() == BRACKETS[0]) {
-                openBracketsAmount--
-            }
-            currentExpression = currentExpression.dropLast(1)
+    fun backspace() {
+        if (currentExpression.isEmpty()) return
+        if (currentExpression.last() == BRACKETS[1]) {
+            openBracketsAmount++
+        } else if (currentExpression.last() == BRACKETS[0]) {
+            openBracketsAmount--
         }
-        return currentExpression
+        currentExpression = currentExpression.dropLast(1)
+        _expressionStateFlow.value = CalculationResult.Input(currentExpression)
     }
 
-
-    fun checkAndCalculate(): CalculationResult {
-        if (currentExpression.isNotEmpty()) {
-            if (currentExpression.last() in OPERATORS || currentExpression.last() == DOT || openBracketsAmount != 0) {
-                return CalculationResult.Nothing
-            }
-            return when (val result = calculate()) {
-                CalculationResult.Failure -> CalculationResult.Failure
-                is CalculationResult.Success -> CalculationResult.Success(
-                    result.output.toDoubleWithInfOrNan().toStringWithoutTrailingZeros()
-                )
-                else -> CalculationResult.Nothing
-            }
-        } else {
-            return CalculationResult.Nothing
+    fun checkAndCalculate() {
+        if (currentExpression.isEmpty() || currentExpression.last() in OPERATORS || currentExpression.last() == DOT || openBracketsAmount != 0) return
+        when (val result = calculate()) {
+            CalculationResult.Failure -> _expressionStateFlow.value = result
+            is CalculationResult.Success -> _expressionStateFlow.value =
+                CalculationResult.Success(result.output.formatResult())
+            else -> Unit
         }
     }
 
@@ -123,7 +146,10 @@ class CalculatorModel {
             try {
                 expressionCopy =
                     expressionCopy.replace(INNER_BRACKET_REGEX) { evaluateInnerExpression(it.value) }
-            } catch (ex: Exception) {
+            } catch (ex: ArithmeticException) {
+                Log.e(TAG, ex.stackTraceToString())
+                return CalculationResult.Failure
+            } catch (ex: NullPointerException) {
                 Log.e(TAG, ex.stackTraceToString())
                 return CalculationResult.Failure
             }
@@ -171,9 +197,8 @@ class CalculatorModel {
             OPERATORS[0] -> (first + second).toString()
             OPERATORS[1] -> (first - second).toString()
             OPERATORS[2] -> (first * second).toString()
-            OPERATORS[3] -> if (second != 0.0) (first / second).toString() else throw ArithmeticException(
-                ZERO_DIVISION_MESSAGE
-            )
+            OPERATORS[3] -> if (second != 0.0) (first / second).toString()
+                            else throw ArithmeticException(ZERO_DIVISION_MESSAGE)
             else -> throw ArithmeticException(OPERATOR_ERROR_MESSAGE)
         }
     }
@@ -187,20 +212,16 @@ class CalculatorModel {
         }
     }
 
-    private fun Double.toStringWithoutTrailingZeros(): String {
+    private fun String.formatResult(): String {
         return when (this) {
-            Double.NaN, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY -> this.toString()
+            POSITIVE_INF, NOT_A_NUMBER, OPERATORS[1].toString() + POSITIVE_INF -> this
             else -> {
-                if (this % 1.0 == 0.0) {
-                    val result = this.toString()
-                    if (result.endsWith(".0")) {
-                        result.dropLast(2)
-                    } else {
-                        result
-                    }
-                } else {
-                    this.toString()
+                var result = this
+                if (result.endsWith(".0")) {
+                    result = result.dropLast(2)
                 }
+                result = result.replace(LEADING_ZEROS_REGEX, "")
+                result
             }
         }
     }

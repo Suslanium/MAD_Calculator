@@ -5,5 +5,5 @@ sealed interface CalculationResult {
 
     object Failure : CalculationResult
 
-    object Nothing : CalculationResult
+    data class Input(val expression: String) : CalculationResult
 }
